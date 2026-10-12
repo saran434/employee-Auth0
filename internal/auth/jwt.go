@@ -20,7 +20,7 @@ func NewTokenValidator() (*TokenValidator, error) {
 	issuer := config.Auth0Issuer()
 	audience := config.Auth0Audience()
 	if issuer == "" || audience == "" {
-		return nil, fmt.Errorf("AUTH0_ISSUER and AUTH0_AUDIENCE must both be configured")
+		return nil, fmt.Errorf("AUTH0_ISSUER and AUTH0_AUDIENCE , both must be configured")
 	}
 
 	issuerURL, err := url.Parse(issuer)
