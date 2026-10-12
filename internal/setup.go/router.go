@@ -8,14 +8,18 @@ import (
 	"strings"
 )
 
-func SetupRouter() *http.ServeMux {
+func SetupRouter() (*http.ServeMux, error) {
+	tokenValidator, err := auth.NewTokenValidator()
+	if err != nil {
+		return nil, err
+	}
 
 	router := http.NewServeMux()
 
 	router.HandleFunc("/register", handlers.Register)
 	router.HandleFunc("/login", handlers.Login)
 
-	router.HandleFunc("/employees", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/employees", authMiddleware(tokenValidator, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			handlers.ListEmployees(w, r)
@@ -28,7 +32,7 @@ func SetupRouter() *http.ServeMux {
 		}
 	}))
 
-	router.HandleFunc("/employees/", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/employees/", authMiddleware(tokenValidator, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			handlers.GetEmployee(w, r)
@@ -44,10 +48,10 @@ func SetupRouter() *http.ServeMux {
 		}
 	}))
 
-	return router
+	return router, nil
 }
 
-func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func authMiddleware(tokenValidator *auth.TokenValidator, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
 		parts := strings.Fields(authHeader)
@@ -62,8 +66,7 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		_, err := auth.ValidateToken(parts[1])
-		if err != nil {
+		if err := tokenValidator.ValidateToken(parts[1]); err != nil {
 			log.Printf("auth middleware: invalid token for %s %s: %v", r.Method, r.URL.Path, err)
 			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return
